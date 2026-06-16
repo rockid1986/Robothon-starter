@@ -1,0 +1,193 @@
+<mujoco model="dexterous_data_bench">
+  <compiler angle="radian" autolimits="true"/>
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="RK4" cone="elliptic"/>
+  <size njmax="600" nconmax="120"/>
+  <visual>
+    <global offwidth="960" offheight="544"/>
+  </visual>
+
+  <default>
+    <geom friction="1.8 0.08 0.004" solref="0.004 1" solimp="0.95 0.99 0.001"/>
+    <joint damping="0.7" armature="0.01"/>
+    <position kp="80" kv="6"/>
+  </default>
+
+  <asset>
+    <texture name="grid" type="2d" builtin="checker" width="256" height="256"
+             rgb1="0.13 0.14 0.15" rgb2="0.18 0.20 0.21"/>
+    <material name="floor_mat" texture="grid" texrepeat="4 4" reflectance="0.18"/>
+    <material name="board_mat" rgba="0.12 0.16 0.18 1"/>
+    <material name="palm_mat" rgba="0.08 0.25 0.32 1"/>
+    <material name="tip_mat" rgba="0.85 0.92 0.95 1"/>
+    <material name="button_red" rgba="0.95 0.22 0.18 1"/>
+    <material name="button_blue" rgba="0.20 0.46 0.95 1"/>
+    <material name="button_green" rgba="0.12 0.72 0.32 1"/>
+    <material name="button_gold" rgba="0.95 0.72 0.18 1"/>
+    <material name="dial_mat" rgba="0.58 0.58 0.62 1"/>
+    <material name="handle_mat" rgba="0.97 0.64 0.28 1"/>
+  </asset>
+
+  <worldbody>
+    <light name="key" pos="0 -0.55 0.9" dir="0 0.7 -1" diffuse="0.9 0.9 0.85"/>
+    <light name="fill" pos="-0.5 0.45 0.55" dir="0.5 -0.4 -1" diffuse="0.25 0.32 0.35"/>
+    <camera name="overview" pos="0 -0.68 0.48" xyaxes="1 0 0 0 0.58 0.82"/>
+    <camera name="topdown" pos="0.02 0.09 0.72" xyaxes="1 0 0 0 1 0"/>
+
+    <geom name="floor" type="plane" size="1.0 1.0 0.02" material="floor_mat"/>
+
+    <body name="task_board" pos="0 0.12 0.011">
+      <geom name="board" type="box" size="0.34 0.20 0.011" material="board_mat"/>
+      <geom name="sequence_slot" type="box" pos="-0.09 -0.145 0.018"
+            size="0.17 0.012 0.004" rgba="0.8 0.9 0.95 0.55" contype="0" conaffinity="0"/>
+      <geom name="dial_slot" type="box" pos="0.18 -0.145 0.018"
+            size="0.09 0.012 0.004" rgba="0.95 0.72 0.18 0.55" contype="0" conaffinity="0"/>
+    </body>
+
+    <body name="button_a" pos="-0.18 0.12 0.040">
+      <joint name="button_a_slide" type="slide" axis="0 0 -1" range="0 0.026"
+             stiffness="45" springref="0" damping="2.0"/>
+      <geom name="button_a_cap" type="box" size="0.040 0.040 0.012" material="button_red" mass="0.035"/>
+      <site name="button_a_touch_site" type="box" pos="0 0 0.016" size="0.044 0.044 0.006" rgba="1 0.25 0.25 0.25"/>
+    </body>
+
+    <body name="button_b" pos="-0.06 0.12 0.040">
+      <joint name="button_b_slide" type="slide" axis="0 0 -1" range="0 0.026"
+             stiffness="45" springref="0" damping="2.0"/>
+      <geom name="button_b_cap" type="box" size="0.040 0.040 0.012" material="button_blue" mass="0.035"/>
+      <site name="button_b_touch_site" type="box" pos="0 0 0.016" size="0.044 0.044 0.006" rgba="0.25 0.5 1 0.25"/>
+    </body>
+
+    <body name="button_c" pos="0.06 0.12 0.040">
+      <joint name="button_c_slide" type="slide" axis="0 0 -1" range="0 0.026"
+             stiffness="45" springref="0" damping="2.0"/>
+      <geom name="button_c_cap" type="box" size="0.040 0.040 0.012" material="button_green" mass="0.035"/>
+      <site name="button_c_touch_site" type="box" pos="0 0 0.016" size="0.044 0.044 0.006" rgba="0.25 1 0.45 0.25"/>
+    </body>
+
+    <body name="button_d" pos="0.18 0.12 0.040">
+      <joint name="button_d_slide" type="slide" axis="0 0 -1" range="0 0.026"
+             stiffness="45" springref="0" damping="2.0"/>
+      <geom name="button_d_cap" type="box" size="0.040 0.040 0.012" material="button_gold" mass="0.035"/>
+      <site name="button_d_touch_site" type="box" pos="0 0 0.016" size="0.044 0.044 0.006" rgba="1 0.75 0.25 0.25"/>
+    </body>
+
+    <body name="dial" pos="0.18 0.00 0.044">
+      <joint name="dial_hinge" type="hinge" axis="0 0 1" range="-1.4 1.4"
+             damping="0.08" armature="0.003" frictionloss="0.01"/>
+      <geom name="dial_disc" type="cylinder" size="0.058 0.012" material="dial_mat" mass="0.060"/>
+      <body name="dial_handle" pos="0.058 0 0.022">
+        <geom name="dial_handle_geom" type="box" size="0.027 0.010 0.014" material="handle_mat" mass="0.015"/>
+      </body>
+      <site name="dial_center_site" pos="0 0 0.025" size="0.006" rgba="1 1 1 0.8"/>
+    </body>
+
+    <body name="palm" pos="0 0 0.18">
+      <geom name="palm_plate" type="box" pos="0 0 0.030" size="0.31 0.045 0.012" material="palm_mat" contype="0" conaffinity="0"/>
+
+      <body name="thumb_carriage_x" pos="-0.18 0 0">
+        <inertial pos="0 0 0" mass="0.005" diaginertia="0.00001 0.00001 0.00001"/>
+        <joint name="thumb_x" type="slide" axis="1 0 0" range="-0.075 0.075"/>
+        <body name="thumb_carriage_y">
+          <inertial pos="0 0 0" mass="0.005" diaginertia="0.00001 0.00001 0.00001"/>
+          <joint name="thumb_y" type="slide" axis="0 1 0" range="-0.02 0.22"/>
+          <body name="thumb_tip_body">
+            <joint name="thumb_z" type="slide" axis="0 0 1" range="-0.155 0.020"/>
+            <geom name="thumb_tip" type="sphere" size="0.020" material="tip_mat" mass="0.035"/>
+            <site name="thumb_tip_site" type="sphere" size="0.010" rgba="0.95 0.95 1 0.55"/>
+          </body>
+        </body>
+      </body>
+
+      <body name="index_carriage_x" pos="-0.06 0 0">
+        <inertial pos="0 0 0" mass="0.005" diaginertia="0.00001 0.00001 0.00001"/>
+        <joint name="index_x" type="slide" axis="1 0 0" range="-0.075 0.075"/>
+        <body name="index_carriage_y">
+          <inertial pos="0 0 0" mass="0.005" diaginertia="0.00001 0.00001 0.00001"/>
+          <joint name="index_y" type="slide" axis="0 1 0" range="-0.02 0.22"/>
+          <body name="index_tip_body">
+            <joint name="index_z" type="slide" axis="0 0 1" range="-0.155 0.020"/>
+            <geom name="index_tip" type="sphere" size="0.020" material="tip_mat" mass="0.035"/>
+            <site name="index_tip_site" type="sphere" size="0.010" rgba="0.95 0.95 1 0.55"/>
+          </body>
+        </body>
+      </body>
+
+      <body name="middle_carriage_x" pos="0.06 0 0">
+        <inertial pos="0 0 0" mass="0.005" diaginertia="0.00001 0.00001 0.00001"/>
+        <joint name="middle_x" type="slide" axis="1 0 0" range="-0.075 0.075"/>
+        <body name="middle_carriage_y">
+          <inertial pos="0 0 0" mass="0.005" diaginertia="0.00001 0.00001 0.00001"/>
+          <joint name="middle_y" type="slide" axis="0 1 0" range="-0.02 0.22"/>
+          <body name="middle_tip_body">
+            <joint name="middle_z" type="slide" axis="0 0 1" range="-0.155 0.020"/>
+            <geom name="middle_tip" type="sphere" size="0.020" material="tip_mat" mass="0.035"/>
+            <site name="middle_tip_site" type="sphere" size="0.010" rgba="0.95 0.95 1 0.55"/>
+          </body>
+        </body>
+      </body>
+
+      <body name="ring_carriage_x" pos="0.18 0 0">
+        <inertial pos="0 0 0" mass="0.005" diaginertia="0.00001 0.00001 0.00001"/>
+        <joint name="ring_x" type="slide" axis="1 0 0" range="-0.075 0.075"/>
+        <body name="ring_carriage_y">
+          <inertial pos="0 0 0" mass="0.005" diaginertia="0.00001 0.00001 0.00001"/>
+          <joint name="ring_y" type="slide" axis="0 1 0" range="-0.02 0.22"/>
+          <body name="ring_tip_body">
+            <joint name="ring_z" type="slide" axis="0 0 1" range="-0.155 0.020"/>
+            <geom name="ring_tip" type="sphere" size="0.020" material="tip_mat" mass="0.035"/>
+            <site name="ring_tip_site" type="sphere" size="0.010" rgba="0.95 0.95 1 0.55"/>
+          </body>
+        </body>
+      </body>
+
+      <body name="pinky_carriage_x" pos="0.24 0 0">
+        <inertial pos="0 0 0" mass="0.005" diaginertia="0.00001 0.00001 0.00001"/>
+        <joint name="pinky_x" type="slide" axis="1 0 0" range="-0.075 0.075"/>
+        <body name="pinky_carriage_y">
+          <inertial pos="0 0 0" mass="0.005" diaginertia="0.00001 0.00001 0.00001"/>
+          <joint name="pinky_y" type="slide" axis="0 1 0" range="-0.02 0.22"/>
+          <body name="pinky_tip_body">
+            <joint name="pinky_z" type="slide" axis="0 0 1" range="-0.155 0.020"/>
+            <geom name="pinky_tip" type="sphere" size="0.020" material="tip_mat" mass="0.035"/>
+            <site name="pinky_tip_site" type="sphere" size="0.010" rgba="0.95 0.95 1 0.55"/>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <position name="thumb_x_act" joint="thumb_x" ctrlrange="-0.075 0.075"/>
+    <position name="thumb_y_act" joint="thumb_y" ctrlrange="-0.020 0.220"/>
+    <position name="thumb_z_act" joint="thumb_z" ctrlrange="-0.155 0.020"/>
+    <position name="index_x_act" joint="index_x" ctrlrange="-0.075 0.075"/>
+    <position name="index_y_act" joint="index_y" ctrlrange="-0.020 0.220"/>
+    <position name="index_z_act" joint="index_z" ctrlrange="-0.155 0.020"/>
+    <position name="middle_x_act" joint="middle_x" ctrlrange="-0.075 0.075"/>
+    <position name="middle_y_act" joint="middle_y" ctrlrange="-0.020 0.220"/>
+    <position name="middle_z_act" joint="middle_z" ctrlrange="-0.155 0.020"/>
+    <position name="ring_x_act" joint="ring_x" ctrlrange="-0.075 0.075"/>
+    <position name="ring_y_act" joint="ring_y" ctrlrange="-0.020 0.220"/>
+    <position name="ring_z_act" joint="ring_z" ctrlrange="-0.155 0.020"/>
+    <position name="pinky_x_act" joint="pinky_x" ctrlrange="-0.075 0.075"/>
+    <position name="pinky_y_act" joint="pinky_y" ctrlrange="-0.020 0.220"/>
+    <position name="pinky_z_act" joint="pinky_z" ctrlrange="-0.155 0.020"/>
+  </actuator>
+
+  <sensor>
+    <jointpos name="button_a_depth" joint="button_a_slide"/>
+    <jointpos name="button_b_depth" joint="button_b_slide"/>
+    <jointpos name="button_c_depth" joint="button_c_slide"/>
+    <jointpos name="button_d_depth" joint="button_d_slide"/>
+    <jointpos name="dial_angle" joint="dial_hinge"/>
+    <touch name="button_a_touch" site="button_a_touch_site"/>
+    <touch name="button_b_touch" site="button_b_touch_site"/>
+    <touch name="button_c_touch" site="button_c_touch_site"/>
+    <touch name="button_d_touch" site="button_d_touch_site"/>
+    <framepos name="thumb_tip_pos" objtype="site" objname="thumb_tip_site"/>
+    <framepos name="index_tip_pos" objtype="site" objname="index_tip_site"/>
+    <framepos name="middle_tip_pos" objtype="site" objname="middle_tip_site"/>
+    <framepos name="ring_tip_pos" objtype="site" objname="ring_tip_site"/>
+    <framepos name="pinky_tip_pos" objtype="site" objname="pinky_tip_site"/>
+  </sensor>
+</mujoco>
