@@ -21,6 +21,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--height", type=int, default=544)
     parser.add_argument("--sample-hz", type=int, default=50)
     parser.add_argument("--camera", choices=("overview", "topdown"), default="overview")
+    parser.add_argument("--controller", choices=("learned", "scripted"), default="learned")
     return parser.parse_args()
 
 
@@ -36,6 +37,7 @@ def main() -> int:
         height=args.height,
         sample_hz=args.sample_hz,
         camera=args.camera,
+        controller=args.controller,
     )
     printable = {key: value for key, value in summary.items() if key != "samples"}
     printable["sample_count"] = len(summary["samples"])

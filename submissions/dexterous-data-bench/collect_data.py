@@ -19,6 +19,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sample-hz", type=int, default=50)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--jitter", type=float, default=0.006)
+    parser.add_argument("--controller", choices=("learned", "scripted"), default="learned")
     return parser.parse_args()
 
 
@@ -37,6 +38,7 @@ def main() -> int:
                 sample_hz=args.sample_hz,
                 seed=args.seed + episode,
                 jitter=args.jitter,
+                controller=args.controller,
             )
             row = {
                 "episode": episode,

@@ -3,7 +3,9 @@
 Dexterous Data Bench is a self-contained MuJoCo manipulation benchmark for the
 FFAI Robothon. A five-fingertip hand performs a short task-board routine:
 press a four-key sequence, execute a two-finger chord, sweep a rotary dial, and
-record synchronized control and sensor data.
+record synchronized control and sensor data. The default controller is a
+learned imitation policy trained at launch time from expert rollouts and then
+stabilized with sensor-feedback corrections.
 
 ## Robot Platform
 
@@ -33,7 +35,9 @@ collection rather than a single animation.
 
 - MuJoCo MJCF scene with explicit joints, actuators, contacts, sensors, and
   camera definitions.
-- Deterministic scripted policy for reproducible judging.
+- RBF imitation policy trained from an expert trajectory when the demo starts.
+- Closed-loop sensor feedback uses key depth, touch, and dial angle to correct
+  contact timing during rollout.
 - Optional keyboard teleoperation presets for manual inspection.
 - Dataset collector with light domain randomization of fingertip commands.
 - JSON trajectory logs with controls, sensor values, qpos/qvel samples, contact
@@ -42,19 +46,38 @@ collection rather than a single animation.
 ## Core Features
 
 - Self-contained `scene.xml` MuJoCo task board and robot model.
-- `run_demo.py` renders a 1-3 minute-compatible demo artifact.
-- `collect_data.py` generates multiple trajectory files and a manifest.
+- `run_demo.py` trains the learned policy, renders an annotated demo artifact,
+  and writes a trajectory file.
+- `collect_data.py` generates multiple learned-policy trajectory files and a
+  manifest.
+- `evaluate_policy.py` runs repeated learned-policy rollouts and reports
+  success rate.
 - `teleop.py` opens the MuJoCo viewer with keyboard presets.
 - Output summary reports pressed keys, maximum button depths, touch readings,
   dial angle, and a proxy task score.
+
+## Learned Policy Evaluation
+
+The included evaluator runs repeated learned-policy rollouts:
+
+```bash
+python submissions/dexterous-data-bench/evaluate_policy.py --episodes 12
+```
+
+Local verification after the learned-policy update:
+
+- Controller: learned imitation + sensor feedback
+- Success rate: 12 / 12 episodes
+- Key sequence: red, blue, green/gold chord all pressed
+- Dial sweep: 0.72 rad maximum absolute rotation
 
 ## Current Limitations
 
 - The hand is a simplified high-DOF fingertip array rather than an anatomical
   LEAP or Shadow Hand mesh.
-- The default controller is scripted, not learned.
-- Dial rotation is contact-driven and intentionally short to keep the demo
-  stable across machines.
+- The learned controller is imitation-based and lightweight, not a large RL
+  policy.
+- The dial manipulation is contact-driven inside the simplified task board.
 
 ## Future Improvements
 
@@ -81,6 +104,12 @@ Collect a small dataset:
 
 ```bash
 python submissions/dexterous-data-bench/collect_data.py --episodes 5
+```
+
+Evaluate the learned policy:
+
+```bash
+python submissions/dexterous-data-bench/evaluate_policy.py --episodes 12
 ```
 
 Open interactive teleoperation:

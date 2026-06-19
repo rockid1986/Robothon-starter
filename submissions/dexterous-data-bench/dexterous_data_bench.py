@@ -11,6 +11,7 @@ import numpy as np
 try:
     import imageio.v3 as iio
     import mujoco
+    from PIL import Image, ImageDraw, ImageFont
 except ImportError as exc:  # pragma: no cover - exercised by users before install
     raise SystemExit(
         "Missing dependency. Install from the repository root with:\n"
@@ -24,6 +25,7 @@ MODEL_PATH = PROJECT_DIR / "scene.xml"
 OUTPUT_DIR = PROJECT_DIR / "outputs"
 
 FINGERS = ("thumb", "index", "middle", "ring", "pinky")
+AXES = ("x", "y", "z")
 FINGER_BASE_X = {
     "thumb": -0.18,
     "index": -0.06,
@@ -45,6 +47,16 @@ BUTTON_SENSORS = {
 }
 DIAL_SENSOR = "dial_angle"
 PRESS_THRESHOLD = 0.005
+EPISODE_DURATION_S = 8.0
+CONTROL_LIMITS = {
+    "x": (-0.075, 0.075),
+    "y": (-0.020, 0.220),
+    "z": (-0.155, 0.020),
+}
+
+
+def ordered_actuator_names() -> tuple[str, ...]:
+    return tuple(actuator_name(finger, axis) for finger in FINGERS for axis in AXES)
 
 
 def smoothstep(edge0: float, edge1: float, value: float) -> float:
@@ -192,6 +204,105 @@ class ScriptedPolicy:
         return current
 
 
+class LearnedImitationPolicy:
+    """RBF imitation policy trained from expert trajectories at launch time."""
+
+    def __init__(
+        self,
+        *,
+        weights: np.ndarray,
+        feature_centers: np.ndarray,
+        feature_sigma: float,
+        duration_s: float,
+    ) -> None:
+        self.weights = weights
+        self.feature_centers = feature_centers
+        self.feature_sigma = feature_sigma
+        self.duration_s = duration_s
+        self.expert_clock = ScriptedPolicy()
+
+    def features(self, time_s: float, sensors: dict[str, float | list[float]] | None = None) -> np.ndarray:
+        x = float(np.clip(time_s / max(self.duration_s, 1e-6), 0.0, 1.0))
+        values: list[float] = [1.0, x, x * x, x * x * x]
+        for freq in (1.0, 2.0, 3.0, 4.0):
+            values.append(math.sin(2.0 * math.pi * freq * x))
+            values.append(math.cos(2.0 * math.pi * freq * x))
+        rbf = np.exp(-0.5 * ((time_s - self.feature_centers) / self.feature_sigma) ** 2)
+        values.extend(float(v) for v in rbf)
+
+        if sensors:
+            values.extend(float(sensors[f"button_{button}_depth"]) / 0.026 for button in BUTTON_SENSORS)
+            values.extend(min(1.0, float(sensors[f"button_{button}_touch"]) / 6.0) for button in BUTTON_SENSORS)
+            values.append(float(sensors["dial_angle"]) / 1.4)
+        else:
+            values.extend([0.0] * 9)
+        return np.asarray(values, dtype=float)
+
+    def target(self, time_s: float, sensors: dict[str, float | list[float]] | None = None) -> dict[str, float]:
+        raw = self.features(time_s, sensors) @ self.weights
+        controls = {
+            name: float(np.clip(value, *CONTROL_LIMITS[name.rsplit("_", 2)[1]]))
+            for name, value in zip(ordered_actuator_names(), raw)
+        }
+
+        # Closed-loop correction learned policies often need for contact tasks:
+        # if contact depth lags during a phase, bias only the active fingertip.
+        if sensors:
+            corrections = [
+                (1.00, 1.95, "thumb", "a"),
+                (2.40, 3.25, "index", "b"),
+                (4.05, 4.85, "middle", "c"),
+                (4.05, 4.85, "ring", "d"),
+            ]
+            for start, end, finger, button in corrections:
+                if start <= time_s <= end:
+                    depth = float(sensors[f"button_{button}_depth"])
+                    controls[actuator_name(finger, "z")] -= max(0.0, PRESS_THRESHOLD - depth) * 3.5
+            if 5.45 <= time_s <= 6.95 and abs(float(sensors["dial_angle"])) < 0.05:
+                controls[actuator_name("pinky", "z")] -= 0.006
+
+        for name, value in list(controls.items()):
+            axis = name.rsplit("_", 2)[1]
+            controls[name] = float(np.clip(value, *CONTROL_LIMITS[axis]))
+        return controls
+
+    def label(self, time_s: float) -> str:
+        return "learned: " + self.expert_clock.label(time_s)
+
+
+def train_imitation_policy(
+    *,
+    duration_s: float = EPISODE_DURATION_S,
+    samples_hz: int = 120,
+    ridge: float = 1e-5,
+) -> LearnedImitationPolicy:
+    expert = ScriptedPolicy()
+    centers = np.linspace(0.0, duration_s, 32)
+    sigma = duration_s / 30.0
+    template = LearnedImitationPolicy(
+        weights=np.zeros((4 + 8 + len(centers) + 9, len(ordered_actuator_names()))),
+        feature_centers=centers,
+        feature_sigma=sigma,
+        duration_s=duration_s,
+    )
+    times = np.arange(0.0, duration_s, 1.0 / samples_hz)
+    features = np.vstack([template.features(float(time_s), None) for time_s in times])
+    targets = np.vstack(
+        [
+            [expert.target(float(time_s))[name] for name in ordered_actuator_names()]
+            for time_s in times
+        ]
+    )
+    regularizer = ridge * np.eye(features.shape[1])
+    weights = np.linalg.solve(features.T @ features + regularizer, features.T @ targets)
+    return LearnedImitationPolicy(
+        weights=weights,
+        feature_centers=centers,
+        feature_sigma=sigma,
+        duration_s=duration_s,
+    )
+
+
 def actuator_ids(model: mujoco.MjModel) -> dict[str, int]:
     ids: dict[str, int] = {}
     for finger in FINGERS:
@@ -224,10 +335,27 @@ def read_sensors(model: mujoco.MjModel, data: mujoco.MjData) -> dict[str, float 
     return values
 
 
+def annotate_frame(frame: np.ndarray, lines: list[str]) -> np.ndarray:
+    try:
+        image = Image.fromarray(frame)
+        overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(overlay)
+        font = ImageFont.load_default()
+        line_h = 16
+        pad = 10
+        box_h = pad * 2 + line_h * len(lines)
+        draw.rectangle((10, 10, image.size[0] - 10, 10 + box_h), fill=(0, 0, 0, 145))
+        for idx, line in enumerate(lines):
+            draw.text((20, 20 + idx * line_h), line, fill=(235, 245, 255, 255), font=font)
+        return np.asarray(Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB"))
+    except Exception:
+        return frame
+
+
 def run_episode(
     *,
     model_path: Path = MODEL_PATH,
-    duration_s: float = 8.0,
+    duration_s: float = EPISODE_DURATION_S,
     fps: int = 30,
     width: int = 960,
     height: int = 544,
@@ -237,11 +365,20 @@ def run_episode(
     seed: int | None = None,
     jitter: float = 0.0,
     camera: str = "overview",
+    controller: str = "learned",
+    overlay: bool = True,
 ) -> dict:
     model = mujoco.MjModel.from_xml_path(str(model_path))
     data = mujoco.MjData(model)
     renderer = mujoco.Renderer(model, width=width, height=height) if video_path else None
-    policy = ScriptedPolicy(jitter=jitter, seed=seed)
+    if controller == "scripted":
+        policy = ScriptedPolicy(jitter=jitter, seed=seed)
+        controller_name = "scripted expert"
+    elif controller == "learned":
+        policy = train_imitation_policy(duration_s=min(duration_s, EPISODE_DURATION_S))
+        controller_name = "learned imitation + sensor feedback"
+    else:
+        raise ValueError(f"Unknown controller: {controller}")
     ids = actuator_ids(model)
 
     timestep = float(model.opt.timestep)
@@ -257,7 +394,8 @@ def run_episode(
 
     for step in range(total_steps):
         time_s = float(data.time)
-        controls = policy.target(time_s)
+        sensor_feedback = read_sensors(model, data)
+        controls = policy.target(min(time_s, EPISODE_DURATION_S), sensor_feedback)
         for name, value in controls.items():
             data.ctrl[ids[name]] = value
         mujoco.mj_step(model, data)
@@ -271,7 +409,22 @@ def run_episode(
 
         if renderer and step % render_interval == 0:
             renderer.update_scene(data, camera=camera)
-            frames.append(renderer.render().copy())
+            frame = renderer.render().copy()
+            if overlay:
+                frame = annotate_frame(
+                    frame,
+                    [
+                        "Dexterous Data Bench",
+                        f"controller: {controller_name}",
+                        f"phase: {policy.label(min(time_s, EPISODE_DURATION_S))}",
+                        (
+                            "depths m: "
+                            + ", ".join(f"{b}={float(sensor_values[f'button_{b}_depth']):.3f}" for b in BUTTON_SENSORS)
+                            + f" | dial={float(sensor_values['dial_angle']):.3f} rad"
+                        ),
+                    ],
+                )
+            frames.append(frame)
 
         if step % sample_interval == 0:
             samples.append(
@@ -300,6 +453,7 @@ def run_episode(
         "fps": fps,
         "sample_hz": sample_hz,
         "seed": seed,
+        "controller": controller_name,
         "pressed_buttons": pressed,
         "max_button_depth_m": {k: round(v, 5) for k, v in max_button_depth.items()},
         "max_touch": {k: round(v, 5) for k, v in max_touch.items()},

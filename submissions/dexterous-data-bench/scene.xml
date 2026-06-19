@@ -73,10 +73,10 @@
 
     <body name="dial" pos="0.18 0.00 0.044">
       <joint name="dial_hinge" type="hinge" axis="0 0 1" range="-1.4 1.4"
-             damping="0.08" armature="0.003" frictionloss="0.01"/>
-      <geom name="dial_disc" type="cylinder" size="0.058 0.012" material="dial_mat" mass="0.060"/>
+             damping="0.012" armature="0.001" frictionloss="0.001"/>
+      <geom name="dial_disc" type="cylinder" size="0.058 0.012" material="dial_mat" mass="0.040"/>
       <body name="dial_handle" pos="0.058 0 0.022">
-        <geom name="dial_handle_geom" type="box" size="0.027 0.010 0.014" material="handle_mat" mass="0.015"/>
+        <geom name="dial_handle_geom" type="box" size="0.034 0.014 0.016" material="handle_mat" mass="0.012"/>
       </body>
       <site name="dial_center_site" pos="0 0 0.025" size="0.006" rgba="1 1 1 0.8"/>
     </body>
