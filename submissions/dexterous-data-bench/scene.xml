@@ -18,7 +18,10 @@
     <material name="floor_mat" texture="grid" texrepeat="4 4" reflectance="0.18"/>
     <material name="board_mat" rgba="0.12 0.16 0.18 1"/>
     <material name="palm_mat" rgba="0.08 0.25 0.32 1"/>
+    <material name="phalanx_mat" rgba="0.10 0.38 0.48 1"/>
+    <material name="joint_mat" rgba="0.05 0.18 0.24 1"/>
     <material name="tip_mat" rgba="0.85 0.92 0.95 1"/>
+    <material name="nail_mat" rgba="0.95 0.98 1.00 1"/>
     <material name="button_red" rgba="0.95 0.22 0.18 1"/>
     <material name="button_blue" rgba="0.20 0.46 0.95 1"/>
     <material name="button_green" rgba="0.12 0.72 0.32 1"/>
@@ -83,6 +86,8 @@
 
     <body name="palm" pos="0 0 0.18">
       <geom name="palm_plate" type="box" pos="0 0 0.030" size="0.31 0.045 0.012" material="palm_mat" contype="0" conaffinity="0"/>
+      <geom name="palm_soft_pad" type="ellipsoid" pos="-0.010 0.018 0.050" size="0.285 0.070 0.020" material="palm_mat" contype="0" conaffinity="0"/>
+      <geom name="wrist_mount" type="capsule" fromto="-0.210 -0.045 0.038 0.210 -0.045 0.038" size="0.015" material="joint_mat" contype="0" conaffinity="0"/>
 
       <body name="thumb_carriage_x" pos="-0.18 0 0">
         <inertial pos="0 0 0" mass="0.005" diaginertia="0.00001 0.00001 0.00001"/>
@@ -90,9 +95,13 @@
         <body name="thumb_carriage_y">
           <inertial pos="0 0 0" mass="0.005" diaginertia="0.00001 0.00001 0.00001"/>
           <joint name="thumb_y" type="slide" axis="0 1 0" range="-0.02 0.22"/>
+          <geom name="thumb_knuckle" type="sphere" pos="0 -0.038 0.045" size="0.016" material="joint_mat" contype="0" conaffinity="0"/>
+          <geom name="thumb_proximal_phalanx" type="capsule" fromto="0 -0.036 0.044 0 -0.008 0.016" size="0.011" material="phalanx_mat" contype="0" conaffinity="0"/>
           <body name="thumb_tip_body">
             <joint name="thumb_z" type="slide" axis="0 0 1" range="-0.155 0.020"/>
+            <geom name="thumb_distal_phalanx" type="capsule" fromto="0 -0.035 0.052 0 -0.006 0.016" size="0.012" material="phalanx_mat" contype="0" conaffinity="0"/>
             <geom name="thumb_tip" type="sphere" size="0.020" material="tip_mat" mass="0.035"/>
+            <geom name="thumb_nail" type="box" pos="0 0.012 0.016" size="0.010 0.004 0.006" material="nail_mat" contype="0" conaffinity="0"/>
             <site name="thumb_tip_site" type="sphere" size="0.010" rgba="0.95 0.95 1 0.55"/>
           </body>
         </body>
@@ -104,9 +113,13 @@
         <body name="index_carriage_y">
           <inertial pos="0 0 0" mass="0.005" diaginertia="0.00001 0.00001 0.00001"/>
           <joint name="index_y" type="slide" axis="0 1 0" range="-0.02 0.22"/>
+          <geom name="index_knuckle" type="sphere" pos="0 -0.038 0.045" size="0.016" material="joint_mat" contype="0" conaffinity="0"/>
+          <geom name="index_proximal_phalanx" type="capsule" fromto="0 -0.036 0.044 0 -0.008 0.016" size="0.011" material="phalanx_mat" contype="0" conaffinity="0"/>
           <body name="index_tip_body">
             <joint name="index_z" type="slide" axis="0 0 1" range="-0.155 0.020"/>
+            <geom name="index_distal_phalanx" type="capsule" fromto="0 -0.035 0.052 0 -0.006 0.016" size="0.012" material="phalanx_mat" contype="0" conaffinity="0"/>
             <geom name="index_tip" type="sphere" size="0.020" material="tip_mat" mass="0.035"/>
+            <geom name="index_nail" type="box" pos="0 0.012 0.016" size="0.010 0.004 0.006" material="nail_mat" contype="0" conaffinity="0"/>
             <site name="index_tip_site" type="sphere" size="0.010" rgba="0.95 0.95 1 0.55"/>
           </body>
         </body>
@@ -118,9 +131,13 @@
         <body name="middle_carriage_y">
           <inertial pos="0 0 0" mass="0.005" diaginertia="0.00001 0.00001 0.00001"/>
           <joint name="middle_y" type="slide" axis="0 1 0" range="-0.02 0.22"/>
+          <geom name="middle_knuckle" type="sphere" pos="0 -0.038 0.045" size="0.016" material="joint_mat" contype="0" conaffinity="0"/>
+          <geom name="middle_proximal_phalanx" type="capsule" fromto="0 -0.036 0.044 0 -0.008 0.016" size="0.011" material="phalanx_mat" contype="0" conaffinity="0"/>
           <body name="middle_tip_body">
             <joint name="middle_z" type="slide" axis="0 0 1" range="-0.155 0.020"/>
+            <geom name="middle_distal_phalanx" type="capsule" fromto="0 -0.035 0.052 0 -0.006 0.016" size="0.012" material="phalanx_mat" contype="0" conaffinity="0"/>
             <geom name="middle_tip" type="sphere" size="0.020" material="tip_mat" mass="0.035"/>
+            <geom name="middle_nail" type="box" pos="0 0.012 0.016" size="0.010 0.004 0.006" material="nail_mat" contype="0" conaffinity="0"/>
             <site name="middle_tip_site" type="sphere" size="0.010" rgba="0.95 0.95 1 0.55"/>
           </body>
         </body>
@@ -132,9 +149,13 @@
         <body name="ring_carriage_y">
           <inertial pos="0 0 0" mass="0.005" diaginertia="0.00001 0.00001 0.00001"/>
           <joint name="ring_y" type="slide" axis="0 1 0" range="-0.02 0.22"/>
+          <geom name="ring_knuckle" type="sphere" pos="0 -0.038 0.045" size="0.016" material="joint_mat" contype="0" conaffinity="0"/>
+          <geom name="ring_proximal_phalanx" type="capsule" fromto="0 -0.036 0.044 0 -0.008 0.016" size="0.011" material="phalanx_mat" contype="0" conaffinity="0"/>
           <body name="ring_tip_body">
             <joint name="ring_z" type="slide" axis="0 0 1" range="-0.155 0.020"/>
+            <geom name="ring_distal_phalanx" type="capsule" fromto="0 -0.035 0.052 0 -0.006 0.016" size="0.012" material="phalanx_mat" contype="0" conaffinity="0"/>
             <geom name="ring_tip" type="sphere" size="0.020" material="tip_mat" mass="0.035"/>
+            <geom name="ring_nail" type="box" pos="0 0.012 0.016" size="0.010 0.004 0.006" material="nail_mat" contype="0" conaffinity="0"/>
             <site name="ring_tip_site" type="sphere" size="0.010" rgba="0.95 0.95 1 0.55"/>
           </body>
         </body>
@@ -146,9 +167,13 @@
         <body name="pinky_carriage_y">
           <inertial pos="0 0 0" mass="0.005" diaginertia="0.00001 0.00001 0.00001"/>
           <joint name="pinky_y" type="slide" axis="0 1 0" range="-0.02 0.22"/>
+          <geom name="pinky_knuckle" type="sphere" pos="0 -0.038 0.045" size="0.015" material="joint_mat" contype="0" conaffinity="0"/>
+          <geom name="pinky_proximal_phalanx" type="capsule" fromto="0 -0.036 0.044 0 -0.008 0.016" size="0.010" material="phalanx_mat" contype="0" conaffinity="0"/>
           <body name="pinky_tip_body">
             <joint name="pinky_z" type="slide" axis="0 0 1" range="-0.155 0.020"/>
+            <geom name="pinky_distal_phalanx" type="capsule" fromto="0 -0.032 0.049 0 -0.006 0.015" size="0.011" material="phalanx_mat" contype="0" conaffinity="0"/>
             <geom name="pinky_tip" type="sphere" size="0.020" material="tip_mat" mass="0.035"/>
+            <geom name="pinky_nail" type="box" pos="0 0.012 0.015" size="0.009 0.004 0.005" material="nail_mat" contype="0" conaffinity="0"/>
             <site name="pinky_tip_site" type="sphere" size="0.010" rgba="0.95 0.95 1 0.55"/>
           </body>
         </body>

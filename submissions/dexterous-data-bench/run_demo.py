@@ -22,6 +22,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sample-hz", type=int, default=50)
     parser.add_argument("--camera", choices=("overview", "topdown"), default="overview")
     parser.add_argument("--controller", choices=("learned", "scripted"), default="learned")
+    parser.add_argument("--visual-dir", type=Path, default=OUTPUT_DIR / "visual_samples")
+    parser.add_argument("--visual-hz", type=float, default=2.0)
+    parser.add_argument("--visual-cameras", nargs="+", choices=("overview", "topdown"), default=("overview", "topdown"))
+    parser.add_argument("--no-visual-export", action="store_true")
     return parser.parse_args()
 
 
@@ -38,6 +42,9 @@ def main() -> int:
         sample_hz=args.sample_hz,
         camera=args.camera,
         controller=args.controller,
+        visual_export_dir=None if args.no_visual_export else args.visual_dir,
+        visual_export_hz=args.visual_hz,
+        visual_cameras=tuple(args.visual_cameras),
     )
     printable = {key: value for key, value in summary.items() if key != "samples"}
     printable["sample_count"] = len(summary["samples"])

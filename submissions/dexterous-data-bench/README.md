@@ -1,16 +1,18 @@
 # Dexterous Data Bench
 
 Dexterous Data Bench is a self-contained MuJoCo manipulation benchmark for the
-FFAI Robothon. A five-fingertip hand performs a short task-board routine:
-press a four-key sequence, execute a two-finger chord, sweep a rotary dial, and
-record synchronized control and sensor data. The default controller is a
+FFAI Robothon. A five-finger hand with palm, knuckle, phalanx, nail, and
+fingertip-pad visuals performs a short task-board routine: press a four-key
+sequence, execute a two-finger chord, sweep a rotary dial, and record
+synchronized control, sensor, RGB, and depth data. The default controller is a
 learned imitation policy trained at launch time from expert rollouts and then
 stabilized with sensor-feedback corrections.
 
 ## Robot Platform
 
-- Fixed-base dexterous fingertip array.
-- Five fingertips: thumb, index, middle, ring, and pinky.
+- Fixed-base dexterous hand with visual palm, wrist mount, knuckles, phalanxes,
+  nails, and contact fingertip pads.
+- Five controllable fingers: thumb, index, middle, ring, and pinky.
 - Each fingertip has three prismatic joints and three position actuators.
 - Task board includes four spring-loaded keys, a rotary dial, touch sensors,
   joint-position sensors, contact dynamics, and two cameras.
@@ -33,8 +35,8 @@ collection rather than a single animation.
 
 ## Technical Approach
 
-- MuJoCo MJCF scene with explicit joints, actuators, contacts, sensors, and
-  camera definitions.
+- MuJoCo MJCF scene with explicit joints, actuators, contacts, sensors, visual
+  hand geometry, and camera definitions.
 - RBF imitation policy trained from an expert trajectory when the demo starts.
 - Closed-loop sensor feedback uses key depth, touch, and dial angle to correct
   contact timing during rollout.
@@ -42,6 +44,8 @@ collection rather than a single animation.
 - Dataset collector with light domain randomization of fingertip commands.
 - JSON trajectory logs with controls, sensor values, qpos/qvel samples, contact
   counts, task labels, and success metrics.
+- Visual dataset export with synchronized overview/topdown RGB PNG frames,
+  depth `.npy` arrays, and a `visual_manifest.json`.
 
 ## Core Features
 
@@ -55,6 +59,8 @@ collection rather than a single animation.
 - `teleop.py` opens the MuJoCo viewer with keyboard presets.
 - Output summary reports pressed keys, maximum button depths, touch readings,
   dial angle, and a proxy task score.
+- `run_demo.py` exports visual samples by default to
+  `outputs/visual_samples/`.
 
 ## Learned Policy Evaluation
 
@@ -73,16 +79,16 @@ Local verification after the learned-policy update:
 
 ## Current Limitations
 
-- The hand is a simplified high-DOF fingertip array rather than an anatomical
-  LEAP or Shadow Hand mesh.
+- The hand uses a compact self-contained kinematic model rather than an
+  imported LEAP or Shadow Hand mesh, but includes visible palm, knuckle,
+  phalanx, nail, and fingertip-pad geometry.
 - The learned controller is imitation-based and lightweight, not a large RL
   policy.
 - The dial manipulation is contact-driven inside the simplified task board.
 
 ## Future Improvements
 
-- Swap the fingertip array for LEAP Hand from MuJoCo Menagerie.
-- Add image/depth export from the topdown camera.
+- Add a LEAP Hand or Shadow Hand import as an optional high-fidelity backend.
 - Train a policy from the generated scripted trajectories.
 - Add randomized button layouts and distractor objects.
 
@@ -99,11 +105,19 @@ Expected outputs:
 
 - `submissions/dexterous-data-bench/demo.mp4`
 - `submissions/dexterous-data-bench/outputs/dexterous_data_bench_trajectory.json`
+- `submissions/dexterous-data-bench/outputs/visual_samples/visual_manifest.json`
+- RGB PNG and depth `.npy` samples for overview and topdown cameras
 
 Collect a small dataset:
 
 ```bash
 python submissions/dexterous-data-bench/collect_data.py --episodes 5
+```
+
+Collect trajectories with visual RGB/depth export:
+
+```bash
+python submissions/dexterous-data-bench/collect_data.py --episodes 3 --visual-export
 ```
 
 Evaluate the learned policy:

@@ -20,6 +20,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--jitter", type=float, default=0.006)
     parser.add_argument("--controller", choices=("learned", "scripted"), default="learned")
+    parser.add_argument("--visual-export", action="store_true")
+    parser.add_argument("--visual-hz", type=float, default=1.0)
+    parser.add_argument("--visual-cameras", nargs="+", choices=("overview", "topdown"), default=("topdown",))
     return parser.parse_args()
 
 
@@ -31,6 +34,7 @@ def main() -> int:
     with manifest_path.open("w", encoding="utf-8") as manifest:
         for episode in range(args.episodes):
             trajectory_path = args.outdir / f"episode_{episode:03d}.json"
+            visual_dir = args.outdir / f"episode_{episode:03d}_visual" if args.visual_export else None
             summary = run_episode(
                 model_path=args.model,
                 trajectory_path=trajectory_path,
@@ -39,6 +43,9 @@ def main() -> int:
                 seed=args.seed + episode,
                 jitter=args.jitter,
                 controller=args.controller,
+                visual_export_dir=visual_dir,
+                visual_export_hz=args.visual_hz,
+                visual_cameras=tuple(args.visual_cameras),
             )
             row = {
                 "episode": episode,
@@ -49,6 +56,8 @@ def main() -> int:
                 "max_abs_dial_rad": summary["max_abs_dial_rad"],
                 "sample_count": len(summary["samples"]),
             }
+            if "visual_dataset" in summary:
+                row["visual_dataset"] = summary["visual_dataset"]
             manifest.write(json.dumps(row) + "\n")
             print(json.dumps(row, indent=2))
 

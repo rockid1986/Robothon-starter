@@ -352,6 +352,49 @@ def annotate_frame(frame: np.ndarray, lines: list[str]) -> np.ndarray:
         return frame
 
 
+def write_visual_sample(
+    *,
+    renderer: mujoco.Renderer,
+    data: mujoco.MjData,
+    export_dir: Path,
+    camera_name: str,
+    frame_index: int,
+    time_s: float,
+) -> dict:
+    camera_dir = export_dir / camera_name
+    camera_dir.mkdir(parents=True, exist_ok=True)
+
+    stem = f"{frame_index:04d}_{time_s:05.2f}s"
+    rgb_path = camera_dir / f"{stem}_rgb.png"
+    depth_path = camera_dir / f"{stem}_depth.npy"
+
+    renderer.disable_depth_rendering()
+    renderer.update_scene(data, camera=camera_name)
+    rgb = renderer.render().copy()
+    Image.fromarray(rgb).save(rgb_path)
+
+    renderer.enable_depth_rendering()
+    renderer.update_scene(data, camera=camera_name)
+    depth = renderer.render().copy()
+    np.save(depth_path, depth)
+    renderer.disable_depth_rendering()
+
+    finite_depth = depth[np.isfinite(depth)]
+    return {
+        "time_s": round(time_s, 4),
+        "camera": camera_name,
+        "rgb": str(rgb_path),
+        "depth": str(depth_path),
+        "rgb_shape": list(rgb.shape),
+        "depth_shape": list(depth.shape),
+        "depth_range_m": (
+            [round(float(finite_depth.min()), 4), round(float(finite_depth.max()), 4)]
+            if finite_depth.size
+            else None
+        ),
+    }
+
+
 def run_episode(
     *,
     model_path: Path = MODEL_PATH,
@@ -367,10 +410,14 @@ def run_episode(
     camera: str = "overview",
     controller: str = "learned",
     overlay: bool = True,
+    visual_export_dir: Path | None = None,
+    visual_export_hz: float = 2.0,
+    visual_cameras: tuple[str, ...] = ("overview", "topdown"),
 ) -> dict:
     model = mujoco.MjModel.from_xml_path(str(model_path))
     data = mujoco.MjData(model)
-    renderer = mujoco.Renderer(model, width=width, height=height) if video_path else None
+    needs_renderer = video_path is not None or visual_export_dir is not None
+    renderer = mujoco.Renderer(model, width=width, height=height) if needs_renderer else None
     if controller == "scripted":
         policy = ScriptedPolicy(jitter=jitter, seed=seed)
         controller_name = "scripted expert"
@@ -385,9 +432,11 @@ def run_episode(
     total_steps = int(math.ceil(duration_s / timestep))
     render_interval = max(1, int(round(1.0 / (fps * timestep))))
     sample_interval = max(1, int(round(1.0 / (sample_hz * timestep))))
+    visual_interval = max(1, int(round(1.0 / (max(visual_export_hz, 1e-6) * timestep))))
 
     frames: list[np.ndarray] = []
     samples: list[dict] = []
+    visual_samples: list[dict] = []
     max_button_depth = {button: 0.0 for button in BUTTON_SENSORS}
     max_touch = {button: 0.0 for button in BUTTON_SENSORS}
     max_abs_dial = 0.0
@@ -408,23 +457,44 @@ def run_episode(
         max_abs_dial = max(max_abs_dial, abs(float(sensor_values["dial_angle"])))
 
         if renderer and step % render_interval == 0:
+            renderer.disable_depth_rendering()
             renderer.update_scene(data, camera=camera)
             frame = renderer.render().copy()
             if overlay:
-                frame = annotate_frame(
-                    frame,
+                overlay_lines = [
+                    "Dexterous Data Bench",
+                    f"controller: {controller_name}",
+                ]
+                if visual_export_dir:
+                    overlay_lines.append("visual export: overview/topdown RGB + depth")
+                overlay_lines.extend(
                     [
-                        "Dexterous Data Bench",
-                        f"controller: {controller_name}",
                         f"phase: {policy.label(min(time_s, EPISODE_DURATION_S))}",
                         (
                             "depths m: "
                             + ", ".join(f"{b}={float(sensor_values[f'button_{b}_depth']):.3f}" for b in BUTTON_SENSORS)
                             + f" | dial={float(sensor_values['dial_angle']):.3f} rad"
                         ),
-                    ],
+                    ]
+                )
+                frame = annotate_frame(
+                    frame,
+                    overlay_lines,
                 )
             frames.append(frame)
+
+        if renderer and visual_export_dir and step % visual_interval == 0:
+            for camera_name in visual_cameras:
+                visual_samples.append(
+                    write_visual_sample(
+                        renderer=renderer,
+                        data=data,
+                        export_dir=visual_export_dir,
+                        camera_name=camera_name,
+                        frame_index=len(visual_samples),
+                        time_s=time_s,
+                    )
+                )
 
         if step % sample_interval == 0:
             samples.append(
@@ -462,6 +532,26 @@ def run_episode(
         "success": all(pressed.values()),
         "samples": samples,
     }
+
+    if visual_export_dir:
+        visual_export_dir.mkdir(parents=True, exist_ok=True)
+        visual_manifest = {
+            "modalities": ["rgb_png", "depth_npy"],
+            "cameras": list(visual_cameras),
+            "sample_hz": visual_export_hz,
+            "frame_count": len(visual_samples),
+            "samples": visual_samples,
+        }
+        manifest_path = visual_export_dir / "visual_manifest.json"
+        manifest_path.write_text(json.dumps(visual_manifest, indent=2), encoding="utf-8")
+        summary["visual_dataset"] = {
+            "directory": str(visual_export_dir),
+            "manifest": str(manifest_path),
+            "modalities": visual_manifest["modalities"],
+            "cameras": visual_manifest["cameras"],
+            "sample_hz": visual_export_hz,
+            "frame_count": len(visual_samples),
+        }
 
     if video_path and renderer:
         video_path.parent.mkdir(parents=True, exist_ok=True)
